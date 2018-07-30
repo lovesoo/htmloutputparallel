@@ -17,14 +17,16 @@ from nose.plugins.base import Plugin
 from nose.exc import SkipTest
 from nose.pyversion import force_unicode, format_exception
 
+
 def id_split(idval):
     m = re.match(r'^(.*?)(\(.*\))$', idval)
     if m:
         name, fargs = m.groups()
         head, tail = name.rsplit(".", 1)
-        return [head, tail+fargs]
+        return [head, tail + fargs]
     else:
         return idval.rsplit(".", 1)
+
 
 def nice_classname(obj):
     """Returns a nice name for class object or class instance.
@@ -49,6 +51,7 @@ def nice_classname(obj):
     else:
         return cls_name
 
+
 def exc_message(exc_info):
     """Return the exception's message."""
     exc = exc_info[1]
@@ -68,9 +71,11 @@ def exc_message(exc_info):
     result = force_unicode(result, 'UTF-8')
     return result
 
+
 class Tee(object):
     """used for stdout and stderr capture
     """
+
     def __init__(self, encoding, *args):
         self._encoding = encoding
         self._streams = args
@@ -95,7 +100,7 @@ class Tee(object):
 class HtmlOutput(Plugin):
     """This plugin provides test results in html format and works with parallel test."""
     name = 'html-output'
-    score = 2000 #not really sure what's score
+    score = 2000  # not really sure what's score
     encoding = 'UTF-8'
     error_report_file = None
 
@@ -119,22 +124,21 @@ class HtmlOutput(Plugin):
         """Sets additional command line options."""
         Plugin.options(self, parser, env)
         parser.add_option("--html-out-file", action="store",
-                default=env.get('NOSE_HTML_OUT_FILE', 'results.html'),
-                dest="html_file",
-                metavar="FILE",
-                help="Produce results in the specified HTML file."
-                "[NOSE_HTML_OUT_FILE]" )
+                          default=env.get('NOSE_HTML_OUT_FILE', 'results.html'),
+                          dest="html_file",
+                          metavar="FILE",
+                          help="Produce results in the specified HTML file."
+                          "[NOSE_HTML_OUT_FILE]")
         parser.add_option("--html-out-title", action="store",
-                default=env.get('NOSE_HTML_OUT_TITLE', 'Unittest Report'),
-                dest="html_title",
-                help="The Title of the report in HTML"
-                "[NOSE_HTML_OUT_TITLE]" )
+                          default=env.get('NOSE_HTML_OUT_TITLE', 'Unittest Report'),
+                          dest="html_title",
+                          help="The Title of the report in HTML"
+                          "[NOSE_HTML_OUT_TITLE]")
         parser.add_option("--html-jinja-template", action="store",
-                default=env.get('NOSE_HTML_JINJA_TEMPLATE', os.path.join(os.path.dirname(__file__), "templates", "report.jinja2")),
-                dest="html_template", metavar="FILE",
-                help="jinja2 template file"
-                "[NOSE_HTML_JINJA_TEMPLATE]" )
-
+                          default=env.get('NOSE_HTML_JINJA_TEMPLATE', os.path.join(os.path.dirname(__file__), "templates", "report.jinja2")),
+                          dest="html_template", metavar="FILE",
+                          help="jinja2 template file"
+                          "[NOSE_HTML_JINJA_TEMPLATE]")
 
     def configure(self, options, config):
         """Configures the html-xxx plugin."""
@@ -144,15 +148,15 @@ class HtmlOutput(Plugin):
         if options.html_file:
             self.html_file = options.html_file
         if options.html_title:
-            self.html_title=options.html_title
+            self.html_title = options.html_title
         if self.enabled:
-            self.start_time=datetime.datetime.utcnow()
+            self.start_time = datetime.datetime.now()
             self.jinja = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(options.html_template)),
-                    trim_blocks=True, lstrip_blocks=True)
-            self.jinja_template=options.html_template
+                                            trim_blocks=True, lstrip_blocks=True)
+            self.jinja_template = options.html_template
             if not hasattr(self.config, '_nose_html_output_state'):
                 manager = multiprocessing.Manager()
-                self.errorlist=manager.list()
+                self.errorlist = manager.list()
                 self.stats = manager.dict(**{
                     'errors': 0,
                     'failures': 0,
@@ -174,7 +178,7 @@ class HtmlOutput(Plugin):
         self.stats['testsuite_name'] = self.html_file_name
         self.stats['total'] = (self.stats['errors'] + self.stats['failures']
                                + self.stats['passes'] + self.stats['skipped'])
-        #craft data for jinja
+        # craft data for jinja
         '''
         data = {
             classname: {
@@ -204,31 +208,31 @@ class HtmlOutput(Plugin):
             }
         '''
 
-        #sort all class names
-        classes=[x['class'] for x in self.errorlist]
-        class_stats={'failures':0, 'errors':0, 'skipped':0, 'passes':0, 'total':0}
+        # sort all class names
+        classes = [x['class'] for x in self.errorlist]
+        class_stats = {'failures': 0, 'errors': 0, 'skipped': 0, 'passes': 0, 'total': 0}
         classes.sort()
-        report_jinja=collections.OrderedDict()
+        report_jinja = collections.OrderedDict()
         for _class_ in classes:
             report_jinja.setdefault(_class_, {})
-            _class_stats_=class_stats.copy()
+            _class_stats_ = class_stats.copy()
             for _error_ in self.errorlist:
                 if _class_ != _error_['class']:
                     continue
                 report_jinja[_class_].setdefault('tests', [])
                 if _error_ not in report_jinja[_class_]['tests']:
                     report_jinja[_class_]['tests'].append(_error_)
-                _class_stats_[_error_['type']]+=1
-            _class_stats_['total']=sum(_class_stats_.values())
-            report_jinja[_class_]['stats']=_class_stats_
+                _class_stats_[_error_['type']] += 1
+            _class_stats_['total'] = sum(_class_stats_.values())
+            report_jinja[_class_]['stats'] = _class_stats_
 
-        end_time=datetime.datetime.utcnow()
+        end_time = datetime.datetime.now()
         self.error_report_file.write(self.jinja.get_template(os.path.basename(self.jinja_template)).render(
             html_title=self.html_title,
-            report = report_jinja,
-            stats = self.stats,
-            start_time = str(self.start_time),
-            duration = str(datetime.datetime.utcnow()-self.start_time),
+            report=report_jinja,
+            stats=self.stats,
+            start_time=str(self.start_time),
+            duration=str(datetime.datetime.now() - self.start_time),
             ))
         self.error_report_file.close()
         if self.config.verbosity > 1:
@@ -295,7 +299,7 @@ class HtmlOutput(Plugin):
         tb = format_exception(err, self.encoding)
         _id = test.id()
 
-        self.errorlist.append( {
+        self.errorlist.append({
             'failed': True,
             'class': id_split(_id)[0],
             'name': id_split(_id)[-1],
@@ -325,7 +329,7 @@ class HtmlOutput(Plugin):
             'type': 'failures',
             'exception': nice_classname(err[0]),
             'message': exc_message(err),
-            'tb': '', #do not display traceback on failure
+            'tb': '',  # do not display traceback on failure
             'stdout': self._getCapturedStdout(),
             'stderr': self._getCapturedStderr(),
             'shortDescription': test.shortDescription(),
@@ -342,9 +346,10 @@ class HtmlOutput(Plugin):
             'class': id_split(_id)[0],
             'name': id_split(_id)[-1],
             'time': str(datetime.timedelta(seconds=taken)),
-            'type' : 'passes',
+            'type': 'passes',
             'exception': '',
-            'stdout': self._getCapturedStdout(),
+            # 'stdout': self._getCapturedStdout(),
+            'stdout': '',
             'stderr': self._getCapturedStderr(),
             'shortDescription': test.shortDescription(),
             })
